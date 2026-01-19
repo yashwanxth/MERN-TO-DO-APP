@@ -114,20 +114,61 @@ JWT_SECRET=replace_with_secure_secret
 CORS_ORIGIN=http://localhost:5173
 MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/quicktask
 
-Running the Project:
+
+Running the Project
+
+Frontend
+
+cd frontend
+npm install
+npm run dev
+
+The frontend application will be available at:
+http://localhost:5173
+
+Frontend Routes:
+http://localhost:5173/login
+http://localhost:5173/register
+http://localhost:5173/tasks
+
+Environment Configuration (Frontend)
+
+Create a .env file inside the frontend directory and add:
+VITE_API_URL=http://localhost:5000
+
 
 Backend
 
 cd backend
 npm install
 npm start
+
+The backend server will be available at:
 http://localhost:5000
+
+Health Check Endpoint:
 GET /health
+Example:
+http://localhost:5000/health
+
 
 Analytics Service
 
 cd analytics
 pip install -r requirements.txt
 python -m uvicorn app:app --reload --port 8000
+
+The analytics service will be available at:
 http://localhost:8000
+
+API Documentation:
 http://localhost:8000/docs
+
+
+Important Notes
+
+- Start the Backend before running the Frontend
+- Ensure MongoDB is running and accessible
+- Frontend communicates with the backend using VITE_API_URL
+- Analytics service runs independently on port 8000
+
