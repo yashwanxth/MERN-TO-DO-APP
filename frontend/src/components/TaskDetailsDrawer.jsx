@@ -3,41 +3,28 @@ import { format } from "date-fns";
 
 export default function TaskDetailsDrawer({ task, onClose, onUpdate }) {
   const [form, setForm] = useState(task);
+  const [saving, setSaving] = useState(false);
 
-  /* Sync when a new task is opened */
+  // Sync when a new task is opened
   useEffect(() => {
     setForm(task);
   }, [task]);
 
-  /* Local update + server update */
-  const update = (changes) => {
-    setForm((prev) => ({ ...prev, ...changes }));
-    onUpdate(task._id, changes);
-  };
+  const save = async () => {
+    if (!form.title?.trim()) return;
 
-  /* Subtasks */
-  const addSubtask = () => {
-    const subtasks = [
-      ...(form.subtasks || []),
-      {
-        id: crypto.randomUUID(),
-        text: "",
-        completed: false,
-      },
-    ];
-    update({ subtasks });
-  };
+    setSaving(true);
 
-  const updateSubtask = (id, changes) => {
-    const subtasks = form.subtasks.map((s) =>
-      s.id === id ? { ...s, ...changes } : s
-    );
-    update({ subtasks });
-  };
+    await onUpdate(task._id, {
+      title: form.title.trim(),
+      description: form.description || "",
+      priority: form.priority || "Medium",
+      status: form.status,
+      dueDate: form.dueDate || null,
+    });
 
-  const removeSubtask = (id) => {
-    const subtasks = form.subtasks.filter((s) => s.id !== id);
-    update({ subtasks });
+    setSaving(false);
+    onClose();
   };
 
   return (
@@ -53,7 +40,6 @@ export default function TaskDetailsDrawer({ task, onClose, onUpdate }) {
             type="button"
             onClick={onClose}
             className="drawer-close"
-            aria-label="Close"
           >
             ✕
           </button>
@@ -67,9 +53,9 @@ export default function TaskDetailsDrawer({ task, onClose, onUpdate }) {
             <input
               value={form.title}
               onChange={(e) =>
-                update({ title: e.target.value })
+                setForm({ ...form, title: e.target.value })
               }
-              placeholder="Task title…"
+              placeholder="Task title"
             />
           </div>
 
@@ -78,42 +64,50 @@ export default function TaskDetailsDrawer({ task, onClose, onUpdate }) {
             <label>Description</label>
             <textarea
               value={form.description || ""}
-              placeholder="Add description…"
               onChange={(e) =>
-                update({ description: e.target.value })
+                setForm({
+                  ...form,
+                  description: e.target.value,
+                })
               }
+              placeholder="Add description"
             />
           </div>
 
-          {/* Priority & Status */}
-          <div className="form-row">
-            <div className="form-group">
-              <label>Priority</label>
-              <select
-                value={form.priority || "Medium"}
-                onChange={(e) =>
-                  update({ priority: e.target.value })
-                }
-              >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-              </select>
-            </div>
+          {/* Priority */}
+          <div className="form-group">
+            <label>Priority</label>
+            <select
+              value={form.priority || "Medium"}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  priority: e.target.value,
+                })
+              }
+            >
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
 
-            <div className="form-group">
-              <label>Status</label>
-              <select
-                value={form.status}
-                onChange={(e) =>
-                  update({ status: e.target.value })
-                }
-              >
-                <option value="Todo">Todo</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </div>
+          {/* Status */}
+          <div className="form-group">
+            <label>Status</label>
+            <select
+              value={form.status}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  status: e.target.value,
+                })
+              }
+            >
+              <option value="Todo">Todo</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
           </div>
 
           {/* Due Date */}
@@ -130,7 +124,8 @@ export default function TaskDetailsDrawer({ task, onClose, onUpdate }) {
                   : ""
               }
               onChange={(e) =>
-                update({
+                setForm({
+                  ...form,
                   dueDate: e.target.value
                     ? new Date(
                         e.target.value
@@ -141,79 +136,15 @@ export default function TaskDetailsDrawer({ task, onClose, onUpdate }) {
             />
           </div>
 
-          {/* Subtasks */}
-          <div className="form-group">
-            <div className="subtasks-header">
-              <label>Subtasks</label>
-              <button
-                type="button"
-                onClick={addSubtask}
-                className="add-subtask-btn"
-              >
-                + Add Subtask
-              </button>
-            </div>
-
-            <div className="subtasks-list">
-              {(form.subtasks || []).map((subtask) => (
-                <div
-                  key={subtask.id}
-                  className="subtask-item"
-                >
-                  <input
-                    type="checkbox"
-                    checked={subtask.completed}
-                    onChange={(e) =>
-                      updateSubtask(subtask.id, {
-                        completed: e.target.checked,
-                      })
-                    }
-                  />
-
-                  <input
-                    type="text"
-                    value={subtask.text}
-                    placeholder="Subtask…"
-                    className={
-                      subtask.completed
-                        ? "completed"
-                        : ""
-                    }
-                    onChange={(e) =>
-                      updateSubtask(subtask.id, {
-                        text: e.target.value,
-                      })
-                    }
-                  />
-
-                  <button
-                    type="button"
-                    className="subtask-delete"
-                    onClick={() =>
-                      removeSubtask(subtask.id)
-                    }
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* My Day */}
-          <div className="checkbox-group">
-            <input
-              id="myDay"
-              type="checkbox"
-              checked={form.isMyDay || false}
-              onChange={(e) =>
-                update({ isMyDay: e.target.checked })
-              }
-            />
-            <label htmlFor="myDay">
-              ⭐ Add to My Day
-            </label>
-          </div>
+          {/* Save */}
+          <button
+            type="button"
+            className="save-btn"
+            onClick={save}
+            disabled={saving}
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
         </div>
       </aside>
     </div>

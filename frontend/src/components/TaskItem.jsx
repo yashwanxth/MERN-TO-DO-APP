@@ -13,10 +13,6 @@ export default function TaskItem({ task, onOpen, onToggle }) {
       >
         {task.title}
       </span>
-
-      <span className={`star ${task.important ? "on" : ""}`}>
-        ★
-      </span>
     </div>
   );
 }

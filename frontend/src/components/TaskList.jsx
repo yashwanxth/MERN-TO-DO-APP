@@ -1,29 +1,13 @@
 import TaskItem from "./TaskItem";
 
-export default function TaskList({
-  tasks,
-  view,
-  onToggle,
-  onDelete,
-  onOpenTask,
-}) {
-  let filtered = tasks;
-
-  if (view === "My Day") {
-    filtered = tasks.filter(t => t.inMyDay);
-  }
-
-  if (view === "Planned") {
-    filtered = tasks.filter(t => t.dueDate);
-  }
+export default function TaskList({ tasks, onToggle, onDelete, onOpenTask }) {
+  const list = Array.isArray(tasks) ? tasks : [];
 
   return (
     <div>
-      {filtered.length === 0 && (
-        <p style={{ color: "#888" }}>No tasks</p>
-      )}
+      {list.length === 0 && <p style={{ color: "#888" }}>No tasks</p>}
 
-      {filtered.map(task => (
+      {list.map((task) => (
         <TaskItem
           key={task._id}
           task={task}

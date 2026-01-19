@@ -12,6 +12,7 @@ import {
   subMonths,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import "./CalendarView.css";
 
 export default function CalendarView({
   currentDate,

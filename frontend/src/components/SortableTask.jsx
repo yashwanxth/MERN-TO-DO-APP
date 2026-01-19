@@ -1,21 +1,20 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
-import { Calendar, CheckCircle, GripVertical } from "lucide-react";
+import { Calendar, GripVertical } from "lucide-react";
 
 export default function SortableTask({
   task,
   onToggle,
   onRemove,
   onOpen,
+
+  // new (backward compatible)
+  onNext,
+  onDelete,
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: task._id });
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: task._id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -24,13 +23,24 @@ export default function SortableTask({
 
   const dueDate = task.dueDate ? new Date(task.dueDate) : null;
 
-  const isOverdue =
-    dueDate && isPast(dueDate) && task.status !== "Completed";
-
+  const isOverdue = dueDate && isPast(dueDate) && task.status !== "Completed";
   const isDueToday = dueDate && isToday(dueDate);
   const isDueTomorrow = dueDate && isTomorrow(dueDate);
 
-  const statusClass = task.status.replace(" ", "-");
+  const statusClass = (task.status || "Todo").replaceAll(" ", "-").toLowerCase();
+  const pr = (task.priority || "Medium").toLowerCase();
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    if (onNext) return onNext(task);
+    if (onToggle) return onToggle(task);
+  };
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (onDelete) return onDelete(task._id);
+    if (onRemove) return onRemove(task._id);
+  };
 
   return (
     <div
@@ -49,21 +59,19 @@ export default function SortableTask({
       </div>
 
       {/* Content */}
-      <div className="task-content" onClick={() => onOpen(task)}>
+      <div className="task-content" onClick={() => onOpen && onOpen(task)}>
         <div className="task-header">
           <h3
             className={`task-title ${
               task.status === "Completed" ? "completed" : ""
             }`}
+            title={task.title}
           >
             {task.title}
           </h3>
 
-          {task.priority && task.priority !== "Medium" && (
-            <span className={`pill priority-${task.priority}`}>
-              {task.priority}
-            </span>
-          )}
+          {/* ✅ Always show priority */}
+          <span className={`pill priority ${pr}`}>{(task.priority || "Medium").toUpperCase()}</span>
         </div>
 
         {task.description && (
@@ -74,30 +82,14 @@ export default function SortableTask({
           {dueDate && (
             <span
               className={`task-meta-item ${
-                isOverdue
-                  ? "overdue"
-                  : isDueToday
-                  ? "due-today"
-                  : ""
+                isOverdue ? "overdue" : isDueToday ? "due-today" : ""
               }`}
             >
               <Calendar size={14} />
               {isOverdue && "Overdue · "}
               {isDueToday && "Today"}
               {isDueTomorrow && "Tomorrow"}
-              {!isDueToday &&
-                !isDueTomorrow &&
-                format(dueDate, "MMM d")}
-            </span>
-          )}
-
-          {task.subtasks?.length > 0 && (
-            <span className="task-meta-item">
-              <CheckCircle size={14} />
-              {
-                task.subtasks.filter((s) => s.completed).length
-              }
-              /{task.subtasks.length}
+              {!isDueToday && !isDueTomorrow && format(dueDate, "MMM d")}
             </span>
           )}
         </div>
@@ -105,29 +97,15 @@ export default function SortableTask({
 
       {/* Actions */}
       <div className="task-actions">
-        <span className={`pill ${statusClass}`}>
-          {task.status}
+        <span className={`pill status ${statusClass}`}>
+          {(task.status || "Todo").toUpperCase()}
         </span>
 
-        <button
-          type="button"
-          className="next-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle(task);
-          }}
-        >
+        <button type="button" className="next-btn" onClick={handleNext}>
           {task.status === "Completed" ? "Reset" : "Next"}
         </button>
 
-        <button
-          type="button"
-          className="delete-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(task._id);
-          }}
-        >
+        <button type="button" className="delete-btn" onClick={handleDelete}>
           ✕
         </button>
       </div>
