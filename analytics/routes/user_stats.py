@@ -1,26 +1,33 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from bson import ObjectId
 from db import tasks_collection
 
 router = APIRouter()
 
 @router.get("/analytics/user-stats/{user_id}")
-def get_user_stats(user_id: str):
+def user_stats(user_id: str):
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user id")
+
     tasks = list(tasks_collection.find({"userId": ObjectId(user_id)}))
 
     total = len(tasks)
-    completed = sum(1 for t in tasks if t["status"] == "Completed")
+    completed = sum(1 for t in tasks if t.get("status") == "Completed")
     pending = total - completed
 
-    priority = {"Low": 0, "Medium": 0, "High": 0}
+    priority_dist = {"Low": 0, "Medium": 0, "High": 0}
     for t in tasks:
-        if t["priority"] in priority:
-            priority[t["priority"]] += 1
+        p = t.get("priority")
+        if p in priority_dist:
+            priority_dist[p] += 1
+
+    completion_rate = (completed / total * 100) if total > 0 else 0
 
     return {
+        "userId": user_id,
         "totalTasks": total,
         "completedTasks": completed,
         "pendingTasks": pending,
-        "completionRate": (completed / total * 100) if total else 0,
-        "priorityDistribution": priority
+        "completionRate": round(completion_rate, 2),
+        "priorityDistribution": priority_dist
     }
