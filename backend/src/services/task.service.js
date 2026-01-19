@@ -1,4 +1,5 @@
 const Task = require("../models/Task");
+const mongoose = require("mongoose");
 
 const ALLOWED_STATUS = ["Todo", "In Progress", "Completed"];
 const ALLOWED_PRIORITY = ["Low", "Medium", "High"];
@@ -8,21 +9,15 @@ async function createTask(userId, payload) {
   const { title, description, priority, status, dueDate } = payload;
 
   if (!title || !title.trim()) {
-    const err = new Error("Title is required");
-    err.statusCode = 400;
-    throw err;
+    throw Object.assign(new Error("Title is required"), { statusCode: 400 });
   }
 
   if (priority && !ALLOWED_PRIORITY.includes(priority)) {
-    const err = new Error("Invalid priority");
-    err.statusCode = 400;
-    throw err;
+    throw Object.assign(new Error("Invalid priority"), { statusCode: 400 });
   }
 
   if (status && !ALLOWED_STATUS.includes(status)) {
-    const err = new Error("Invalid status");
-    err.statusCode = 400;
-    throw err;
+    throw Object.assign(new Error("Invalid status"), { statusCode: 400 });
   }
 
   return Task.create({
@@ -41,25 +36,23 @@ async function getTasks(userId, query) {
     priority,
     search,
     sortBy = "createdAt",
-    sortOrder = "desc"
+    sortOrder = "desc",
+    page = 1,
+    limit = 20
   } = query;
 
   const filter = { userId };
 
   if (status) {
     if (!ALLOWED_STATUS.includes(status)) {
-      const err = new Error("Invalid status filter");
-      err.statusCode = 400;
-      throw err;
+      throw Object.assign(new Error("Invalid status filter"), { statusCode: 400 });
     }
     filter.status = status;
   }
 
   if (priority) {
     if (!ALLOWED_PRIORITY.includes(priority)) {
-      const err = new Error("Invalid priority filter");
-      err.statusCode = 400;
-      throw err;
+      throw Object.assign(new Error("Invalid priority filter"), { statusCode: 400 });
     }
     filter.priority = priority;
   }
@@ -68,11 +61,9 @@ async function getTasks(userId, query) {
     filter.title = { $regex: search, $options: "i" };
   }
 
-  /**
-   * ✅ PRIORITY SORT
-   * Always: High → Medium → Low
-   * Independent of sortOrder
-   */
+  const skip = (Math.max(page, 1) - 1) * Math.min(limit, 100);
+
+  // Priority: High → Medium → Low (always)
   if (sortBy === "priority") {
     return Task.aggregate([
       { $match: filter },
@@ -90,85 +81,77 @@ async function getTasks(userId, query) {
           }
         }
       },
-      { $sort: { priorityRank: 1 } }
+      { $sort: { priorityRank: 1 } },
+      { $skip: skip },
+      { $limit: Math.min(limit, 100) }
     ]);
   }
 
   if (!ALLOWED_SORT_FIELDS.includes(sortBy)) {
-    const err = new Error("Invalid sort field");
-    err.statusCode = 400;
-    throw err;
+    throw Object.assign(new Error("Invalid sort field"), { statusCode: 400 });
   }
 
   const sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
-  return Task.find(filter).sort(sort);
+  return Task.find(filter).sort(sort).skip(skip).limit(Math.min(limit, 100));
 }
 
 async function getTaskById(userId, taskId) {
+  if (!mongoose.Types.ObjectId.isValid(taskId)) {
+    throw Object.assign(new Error("Invalid task id"), { statusCode: 400 });
+  }
+
   const task = await Task.findOne({ _id: taskId, userId });
   if (!task) {
-    const err = new Error("Task not found");
-    err.statusCode = 404;
-    throw err;
+    throw Object.assign(new Error("Task not found"), { statusCode: 404 });
   }
   return task;
 }
 
 async function updateTask(userId, taskId, updates) {
-  const payload = { ...updates };
-
-  if (payload.priority && !ALLOWED_PRIORITY.includes(payload.priority)) {
-    const err = new Error("Invalid priority");
-    err.statusCode = 400;
-    throw err;
+  if (!mongoose.Types.ObjectId.isValid(taskId)) {
+    throw Object.assign(new Error("Invalid task id"), { statusCode: 400 });
   }
 
-  if (payload.status && !ALLOWED_STATUS.includes(payload.status)) {
-    const err = new Error("Invalid status");
-    err.statusCode = 400;
-    throw err;
+  if (updates.priority && !ALLOWED_PRIORITY.includes(updates.priority)) {
+    throw Object.assign(new Error("Invalid priority"), { statusCode: 400 });
   }
 
-  if (payload.status === "Completed") {
-    payload.completedAt = new Date();
+  if (updates.status && !ALLOWED_STATUS.includes(updates.status)) {
+    throw Object.assign(new Error("Invalid status"), { statusCode: 400 });
   }
 
-  if (payload.status && payload.status !== "Completed") {
-    payload.completedAt = null;
-  }
+  if (updates.status === "Completed") updates.completedAt = new Date();
+  if (updates.status && updates.status !== "Completed") updates.completedAt = null;
 
-  if (payload.title !== undefined) {
-    payload.title = String(payload.title).trim();
-    if (!payload.title) {
-      const err = new Error("Title cannot be empty");
-      err.statusCode = 400;
-      throw err;
+  if (updates.title !== undefined) {
+    updates.title = String(updates.title).trim();
+    if (!updates.title) {
+      throw Object.assign(new Error("Title cannot be empty"), { statusCode: 400 });
     }
   }
 
   const task = await Task.findOneAndUpdate(
     { _id: taskId, userId },
-    payload,
+    updates,
     { new: true }
   );
 
   if (!task) {
-    const err = new Error("Task not found");
-    err.statusCode = 404;
-    throw err;
+    throw Object.assign(new Error("Task not found"), { statusCode: 404 });
   }
 
   return task;
 }
 
 async function deleteTask(userId, taskId) {
+  if (!mongoose.Types.ObjectId.isValid(taskId)) {
+    throw Object.assign(new Error("Invalid task id"), { statusCode: 400 });
+  }
+
   const task = await Task.findOneAndDelete({ _id: taskId, userId });
   if (!task) {
-    const err = new Error("Task not found");
-    err.statusCode = 404;
-    throw err;
+    throw Object.assign(new Error("Task not found"), { statusCode: 404 });
   }
-  return true;
 }
 
 module.exports = {

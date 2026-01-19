@@ -5,15 +5,22 @@ require("dotenv").config();
 
 const app = express();
 
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+const allowedOrigins = process.env.CORS_ORIGIN?.split(",") || [];
+
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
-app.get("/health", (req, res) => res.json({ status: "ok" }));
+app.get("/health", (req, res) =>
+  res.json({
+    status: "ok",
+    db: mongoose.connection.readyState === 1
+  })
+);
 
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("Mongo connected"))
-  .catch((err) => console.error("Mongo error:", err.message));
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.error("MongoDB error:", err.message));
 
 app.use("/api/auth", require("./src/routes/auth.routes"));
 app.use("/api/tasks", require("./src/routes/task.routes"));
