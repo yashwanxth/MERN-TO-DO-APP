@@ -97,9 +97,6 @@ button {
   cursor: pointer;
 }
 
-/* =========================
-   DARK MODE VARIABLES
-   ========================= */
 
 :root[data-theme="dark"] {
   --bg: #0f172a;
